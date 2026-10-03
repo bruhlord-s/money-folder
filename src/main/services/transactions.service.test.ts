@@ -254,6 +254,29 @@ describe('transactions service', () => {
     )
   })
 
+  it('refuses new money through an archived account', () => {
+    accounts.setArchived(savingsId, true)
+    const archived = { code: 'ARCHIVED' }
+
+    expect(() => transactions.create(input({ accountId: savingsId }))).toThrow(
+      expect.objectContaining(archived)
+    )
+    expect(() => transactions.create(transfer())).toThrow(expect.objectContaining(archived))
+    const taxi = transactions.create(input())
+    expect(() => transactions.update(taxi.id, input({ accountId: savingsId }))).toThrow(
+      expect.objectContaining(archived)
+    )
+  })
+
+  it('keeps transactions on an account editable after it is archived', () => {
+    const moved = transactions.create(transfer())
+    accounts.setArchived(savingsId, true)
+
+    const updated = transactions.update(moved.id, transfer({ amount: 5000, note: 'fixed' }))
+
+    expect(updated).toMatchObject({ total: 5000, note: 'fixed', toAccount: { id: savingsId } })
+  })
+
   it('refuses to delete the target account of a transfer', () => {
     transactions.create(transfer())
 
