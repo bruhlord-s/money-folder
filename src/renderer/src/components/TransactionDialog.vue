@@ -110,7 +110,9 @@ watch(visible, async (isOpen) => {
   form.note = transaction?.note ?? ''
 
   const lines = transaction?.lines ?? []
-  form.itemized = lines.length > 1 || lines.some((line) => line.product !== null)
+  // The single-amount form can only show one line without a product and with quantity 1.
+  form.itemized =
+    lines.length > 1 || lines.some((line) => line.product !== null || line.quantity !== MILLI)
   form.amount = form.itemized || !lines[0] ? null : lines[0].amount / KOPECKS
   form.lines = form.itemized
     ? lines.map((line) => ({
