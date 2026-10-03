@@ -157,6 +157,7 @@ export const en = {
     NOT_FOUND: 'It no longer exists. The list was refreshed.',
     CONFLICT: 'This name is already taken',
     IN_USE: 'It is still used by transactions, so it cannot be deleted. Archive it instead.',
+    ARCHIVED: 'This account is archived. Restore it on the Accounts page to use it.',
     INTERNAL: 'Something went wrong. Details are in the log.'
   }
 }

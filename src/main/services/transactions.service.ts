@@ -41,18 +41,33 @@ export function createTransactionsService({ db, logger, now }: Deps): Transactio
     return transaction
   }
 
-  function assertAccountExists(ex: Executor, accountId: number): void {
-    if (!findAccount(ex, accountId)) {
-      throw new DomainError('NOT_FOUND', `account ${accountId} not found`)
+  /**
+   * New money can't move through an archived account. A transaction that already used it may keep
+   * it, so old records stay editable after the account is archived.
+   */
+  function assertAccountUsable(
+    ex: Executor,
+    accountId: number,
+    existing: TransactionDto | undefined
+  ): void {
+    const account = findAccount(ex, accountId)
+    if (!account) throw new DomainError('NOT_FOUND', `account ${accountId} not found`)
+    const alreadyUsed = existing?.account.id === accountId || existing?.toAccount?.id === accountId
+    if (account.archived && !alreadyUsed) {
+      throw new DomainError('ARCHIVED', `account ${accountId} is archived`)
     }
   }
 
   /** Checks the accounts and resolves names to ids, creating categories on first use. */
-  function prepare(ex: Executor, input: ValidTransactionInput): TransactionValues {
-    assertAccountExists(ex, input.accountId)
+  function prepare(
+    ex: Executor,
+    input: ValidTransactionInput,
+    existing?: TransactionDto
+  ): TransactionValues {
+    assertAccountUsable(ex, input.accountId, existing)
     const common = { accountId: input.accountId, occurredOn: input.occurredOn, note: input.note }
     if (input.kind === 'transfer') {
-      assertAccountExists(ex, input.toAccountId)
+      assertAccountUsable(ex, input.toAccountId, existing)
       return { ...common, kind: 'transfer', toAccountId: input.toAccountId, categoryId: null }
     }
     return {
@@ -95,7 +110,8 @@ export function createTransactionsService({ db, logger, now }: Deps): Transactio
 
     update(id, input) {
       const transaction = db.transaction((tx) => {
-        if (!updateTransaction(tx, id, prepare(tx, input), now())) throw notFound(id)
+        const existing = getTransaction(tx, id)
+        updateTransaction(tx, id, prepare(tx, input, existing), now())
         saveLines(tx, id, input)
         return getTransaction(tx, id)
       })
