@@ -7,6 +7,15 @@ updates:
     groups:
       electron:
         patterns: ['electron', 'electron-*', '@electron-toolkit/*']
+    ignore:
+      # PrimeVue 5, primeicons 8 and @primeuix/themes 3 moved to the commercial PrimeUI
+      # License (key required). Stay on the last MIT lines.
+      - dependency-name: primevue
+        versions: ['>=5']
+      - dependency-name: primeicons
+        versions: ['>=8']
+      - dependency-name: '@primeuix/themes'
+        versions: ['>=3']
   - package-ecosystem: github-actions
     directory: /
     schedule:

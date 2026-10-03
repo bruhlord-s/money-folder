@@ -5,6 +5,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { createContainer, type Container } from './container'
 import { getLogsFolder, initLogging } from './logging/electron-logger'
+import { registerIpcHandlers } from './ipc'
 import { buildAppMenu } from './menu'
 
 // `--verbose` enables debug logs in production builds.
@@ -92,6 +93,7 @@ void app.whenReady().then(() => {
 
   try {
     container = initContainer()
+    registerIpcHandlers(container)
   } catch (error) {
     logger.error('failed to open database', { error })
     dialog.showErrorBox(

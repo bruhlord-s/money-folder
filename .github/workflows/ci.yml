@@ -19,6 +19,7 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm test
       - run: pnpm knip
       - run: pnpm db:check
       - run: pnpm exec electron-vite build

@@ -9,3 +9,12 @@ export interface Logger {
   error(message: string, meta?: LogMeta): void
   child(scope: string): Logger
 }
+
+/** Discards everything. Used in tests. */
+export const noopLogger: Logger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+  child: () => noopLogger
+}

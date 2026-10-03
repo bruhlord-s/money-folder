@@ -14,7 +14,8 @@ pre-push:
   jobs:
     - name: typecheck
       run: pnpm typecheck
-    # add `pnpm test` here once tests exist
+    - name: test
+      run: pnpm test
 
 commit-msg:
   jobs:

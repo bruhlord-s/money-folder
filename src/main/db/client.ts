@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3'
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
-import type { Logger } from '../../shared/logger'
+import type { Logger } from '@shared/logger'
 import * as schema from './schema'
 
 export type Db = BetterSQLite3Database<typeof schema> & { $client: Database.Database }
@@ -20,3 +20,7 @@ export function openDatabase(filePath: string, { sqlLogger }: OpenDatabaseOption
     logger: sqlLogger ? { logQuery: (query) => sqlLogger.debug(query) } : false
   })
 }
+
+type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
+/** What repositories accept, so the same function works inside and outside a transaction. */
+export type Executor = Db | Tx
