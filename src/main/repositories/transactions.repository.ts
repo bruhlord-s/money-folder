@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray, type SQL } from 'drizzle-orm'
+import { asc, desc, eq, type SQL } from 'drizzle-orm'
 import type { TransactionDto, TransactionLineDto } from '@shared/transactions'
 import type { Executor } from '../db/client'
 import { accounts, categories, products, transactionLines, transactions } from '../db/schema'
@@ -87,10 +87,8 @@ function selectTransactions(ex: Executor, where: SQL | undefined): TransactionDt
     .orderBy(desc(transactions.occurredAt), desc(transactions.id))
     .all()
 
-  const linesByTransaction = loadLines(
-    ex,
-    rows.map((row) => row.id)
-  )
+  const linesByTransaction =
+    rows.length === 0 ? new Map<number, TransactionLineDto[]>() : loadLines(ex, where)
   return rows.map(({ occurredAt, ...row }) => {
     const lines = linesByTransaction.get(row.id) ?? []
     return {
@@ -102,9 +100,12 @@ function selectTransactions(ex: Executor, where: SQL | undefined): TransactionDt
   })
 }
 
-function loadLines(ex: Executor, transactionIds: number[]): Map<number, TransactionLineDto[]> {
+/**
+ * Lines of the transactions matching `where`. Filters through a join rather than a list of ids,
+ * which would hit SQLite's limit on bound parameters once there are tens of thousands of rows.
+ */
+function loadLines(ex: Executor, where: SQL | undefined): Map<number, TransactionLineDto[]> {
   const byTransaction = new Map<number, TransactionLineDto[]>()
-  if (transactionIds.length === 0) return byTransaction
   const rows = ex
     .select({
       transactionId: transactionLines.transactionId,
@@ -114,8 +115,9 @@ function loadLines(ex: Executor, transactionIds: number[]): Map<number, Transact
       product: productColumns
     })
     .from(transactionLines)
+    .innerJoin(transactions, eq(transactionLines.transactionId, transactions.id))
     .leftJoin(products, eq(transactionLines.productId, products.id))
-    .where(inArray(transactionLines.transactionId, transactionIds))
+    .where(where)
     .orderBy(asc(transactionLines.id))
     .all()
   for (const { transactionId, ...line } of rows) {

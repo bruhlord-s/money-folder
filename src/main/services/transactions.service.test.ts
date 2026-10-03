@@ -135,6 +135,27 @@ describe('transactions service', () => {
     expect(transactions.list().map((t) => t.id)).toEqual([newer.id, older.id])
   })
 
+  it('lists more transactions than SQLite allows bound parameters', () => {
+    const count = 33_000
+    const insertTransaction = db.$client.prepare(
+      'INSERT INTO transactions (account_id, category_id, occurred_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+    )
+    const insertLine = db.$client.prepare(
+      'INSERT INTO transaction_lines (transaction_id, amount) VALUES (?, 100)'
+    )
+    const categoryId = transactions.create(input()).category.id
+    db.$client.transaction(() => {
+      for (let i = 0; i < count; i++) {
+        const { lastInsertRowid } = insertTransaction.run(accountId, categoryId, DAY, DAY, DAY)
+        insertLine.run(lastInsertRowid)
+      }
+    })()
+
+    const list = transactions.list()
+    expect(list).toHaveLength(count + 1)
+    expect(list.every((t) => t.lines.length === 1)).toBe(true)
+  })
+
   it('deletes a transaction with its lines', () => {
     const groceries = transactions.create(receipt())
     transactions.remove(groceries.id)
