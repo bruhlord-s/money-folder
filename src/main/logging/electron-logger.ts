@@ -1,6 +1,7 @@
 import { dirname } from 'path'
 import log from 'electron-log/main'
 import type { Logger, LogMeta } from '@shared/logger'
+import { formatError } from './format-error'
 
 export type LogLevel = 'info' | 'debug'
 
@@ -25,7 +26,7 @@ function createLogger(scope: string): Logger {
   const write =
     (level: 'debug' | 'info' | 'warn' | 'error') =>
     (message: string, meta?: LogMeta): void => {
-      if (meta) scoped[level](message, meta)
+      if (meta) scoped[level](message, withCauses(meta))
       else scoped[level](message)
     }
 
@@ -36,4 +37,14 @@ function createLogger(scope: string): Logger {
     error: write('error'),
     child: (childScope) => createLogger(`${scope}:${childScope}`)
   }
+}
+
+/** Errors in `meta` become text with their cause chain, which electron-log would drop. */
+function withCauses(meta: LogMeta): LogMeta {
+  return Object.fromEntries(
+    Object.entries(meta).map(([key, value]) => [
+      key,
+      value instanceof Error ? formatError(value) : value
+    ])
+  )
 }
