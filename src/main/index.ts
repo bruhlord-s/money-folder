@@ -52,6 +52,8 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
+    // maximize() also shows the window, but without focus; show() focuses it.
+    mainWindow.maximize()
     mainWindow.show()
   })
 
