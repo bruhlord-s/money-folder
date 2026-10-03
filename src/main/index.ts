@@ -23,13 +23,15 @@ logger.info('app starting', {
 let container: Container | undefined
 
 function initContainer(): Container {
-  const dbPath = join(app.getPath('userData'), 'money-folder.db')
+  const userData = app.getPath('userData')
+  const dbPath = join(userData, 'money-folder.db')
   const created = createContainer({
     dbPath,
     // Packaged builds ship migrations as extraResources (see electron-builder.yml).
     migrationsFolder: app.isPackaged
       ? join(process.resourcesPath, 'migrations')
       : join(app.getAppPath(), 'src/main/db/migrations'),
+    backupDir: join(userData, 'backups'),
     logger,
     logSql: is.dev
   })
