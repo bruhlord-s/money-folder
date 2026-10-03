@@ -17,6 +17,8 @@ import {
 interface ContainerConfig {
   dbPath: string
   migrationsFolder: string
+  /** The database is copied here before pending migrations run. */
+  backupDir: string
   logger: Logger
   /** Log SQL statements (development only). */
   logSql: boolean
@@ -39,22 +41,31 @@ export interface Container {
 export function createContainer({
   dbPath,
   migrationsFolder,
+  backupDir,
   logger,
   logSql
 }: ContainerConfig): Container {
+  const now = (): Date => new Date()
   const dbLogger = logger.child('db')
   const db = openDatabase(dbPath, { sqlLogger: logSql ? dbLogger.child('sql') : undefined })
   try {
     const startedAt = performance.now()
     dbLogger.info('migrations start', { folder: migrationsFolder })
-    runMigrations(db, migrationsFolder)
-    dbLogger.info('migrations done', { durationMs: Math.round(performance.now() - startedAt) })
+    const { applied, backupPath } = runMigrations(db, migrationsFolder, {
+      dir: backupDir,
+      now: now(),
+      logger: dbLogger
+    })
+    dbLogger.info('migrations done', {
+      applied,
+      backupPath,
+      durationMs: Math.round(performance.now() - startedAt)
+    })
   } catch (error) {
     db.$client.close()
     throw error
   }
 
-  const now = (): Date => new Date()
   const services = {
     accounts: createAccountsService({ db, logger, now }),
     members: createFamilyMembersService({ db, logger, now }),
