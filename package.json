@@ -39,7 +39,7 @@
     "@electron-toolkit/eslint-config-ts": "^4.0.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@types/better-sqlite3": "^9.6.0",
-    "@types/node": "^22.19.1",
+    "@types/node": "^26.6.3",
     "@vitejs/plugin-vue": "^6.0.2",
     "drizzle-kit": "^0.31.11",
     "electron": "^44.5.1",
