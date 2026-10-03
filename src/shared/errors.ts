@@ -1,1 +1,1 @@
-export type ErrorCode = 'VALIDATION' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL'
+export type ErrorCode = 'VALIDATION' | 'NOT_FOUND' | 'CONFLICT' | 'IN_USE' | 'INTERNAL'

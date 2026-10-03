@@ -2,11 +2,17 @@ import type { Logger } from '@shared/logger'
 import { openDatabase } from './db/client'
 import { runMigrations } from './db/migrate'
 import { createAccountsService, type AccountsService } from './services/accounts.service'
+import { createCategoriesService, type CategoriesService } from './services/categories.service'
 import {
   createFamilyMembersService,
   type FamilyMembersService
 } from './services/family-members.service'
+import { createProductsService, type ProductsService } from './services/products.service'
 import { createTagsService, type TagsService } from './services/tags.service'
+import {
+  createTransactionsService,
+  type TransactionsService
+} from './services/transactions.service'
 
 interface ContainerConfig {
   dbPath: string
@@ -21,6 +27,9 @@ export interface Container {
     accounts: AccountsService
     members: FamilyMembersService
     tags: TagsService
+    categories: CategoriesService
+    products: ProductsService
+    transactions: TransactionsService
   }
   logger: Logger
   dispose: () => void
@@ -49,7 +58,10 @@ export function createContainer({
   const services = {
     accounts: createAccountsService({ db, logger, now }),
     members: createFamilyMembersService({ db, logger, now }),
-    tags: createTagsService({ db })
+    tags: createTagsService({ db }),
+    categories: createCategoriesService({ db }),
+    products: createProductsService({ db }),
+    transactions: createTransactionsService({ db, logger, now })
   }
 
   return {

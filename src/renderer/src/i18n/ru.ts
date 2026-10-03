@@ -5,6 +5,7 @@ export const ru: MessageSchema = {
     title: 'Money Folder'
   },
   nav: {
+    transactions: 'Расходы',
     accounts: 'Счета',
     members: 'Семья'
   },
@@ -14,6 +15,63 @@ export const ru: MessageSchema = {
     edit: 'Изменить',
     delete: 'Удалить',
     none: '—'
+  },
+  transactions: {
+    title: 'Расходы',
+    new: 'Новый расход',
+    edit: 'Изменить расход',
+    empty: 'Расходов пока нет. Добавьте первый.',
+    itemize: 'Добавить товары',
+    singleAmount: 'Одна сумма',
+    addLine: 'Добавить строку',
+    removeLine: 'Удалить строку',
+    total: 'Итого',
+    columns: {
+      date: 'Дата',
+      category: 'Категория',
+      account: 'Счёт',
+      details: 'Подробности',
+      total: 'Сумма'
+    },
+    fields: {
+      date: 'Дата',
+      account: 'Счёт',
+      category: 'Категория',
+      note: 'Заметка',
+      amount: 'Сумма',
+      product: 'Товар',
+      brand: 'Бренд',
+      size: 'Объём',
+      unit: 'Ед.',
+      quantity: 'Кол-во'
+    },
+    hints: {
+      category: 'Например, Такси или Пятёрочка',
+      newCategory: 'Создать категорию «{name}»',
+      noAccounts: 'Счетов пока нет. Добавьте счёт на странице «Счета».',
+      lines: 'Объём — на одну упаковку: молоко 1 л × 3 шт. Для весовых товаров оставьте пустым.'
+    },
+    errors: {
+      accountId: 'Выберите счёт',
+      categoryName: 'Введите категорию, до 60 символов',
+      amount: 'Введите сумму больше нуля',
+      lines: 'Проверьте выделенные строки: сумма и количество должны быть больше нуля',
+      note: 'До 200 символов'
+    },
+    deleteConfirm: {
+      header: 'Удалить расход?',
+      message: 'Расход «{category}» от {date} будет удалён навсегда.'
+    },
+    toast: {
+      created: 'Расход добавлен',
+      updated: 'Расход сохранён',
+      deleted: 'Расход удалён'
+    }
+  },
+  units: {
+    pcs: 'шт',
+    kg: 'кг',
+    l: 'л'
   },
   accounts: {
     title: 'Счета',
@@ -91,6 +149,7 @@ export const ru: MessageSchema = {
     VALIDATION: 'Некоторые поля заполнены неверно',
     NOT_FOUND: 'Запись уже удалена. Список обновлён.',
     CONFLICT: 'Это имя уже занято',
+    IN_USE: 'Запись используется в расходах, поэтому её нельзя удалить. Отправьте её в архив.',
     INTERNAL: 'Что-то пошло не так. Подробности в журнале.'
   }
 }
