@@ -14,6 +14,10 @@ const { t } = useI18n()
         <span>{{ t('app.title') }}</span>
       </div>
       <nav class="nav">
+        <RouterLink to="/transactions" class="nav-link">
+          <i class="pi pi-receipt" aria-hidden="true" />
+          {{ t('nav.transactions') }}
+        </RouterLink>
         <RouterLink to="/accounts" class="nav-link">
           <i class="pi pi-credit-card" aria-hidden="true" />
           {{ t('nav.accounts') }}

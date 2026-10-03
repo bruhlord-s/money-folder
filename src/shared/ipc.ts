@@ -2,6 +2,7 @@ import type { AccountDto, AccountInput } from './accounts'
 import type { ErrorCode } from './errors'
 import type { FamilyMemberDto, MemberInput } from './family-members'
 import type { TagDto } from './tags'
+import type { CategoryDto, ProductDto, TransactionDto, TransactionInput } from './transactions'
 
 /** Every IPC channel with its input and output. The preload, handlers and renderer are typed from this. */
 interface IpcContract {
@@ -15,6 +16,12 @@ interface IpcContract {
   'members:rename': { input: { id: number; input: MemberInput }; output: FamilyMemberDto }
   'members:delete': { input: { id: number }; output: null }
   'tags:list': { input: null; output: TagDto[] }
+  'categories:list': { input: null; output: CategoryDto[] }
+  'products:list': { input: null; output: ProductDto[] }
+  'transactions:list': { input: null; output: TransactionDto[] }
+  'transactions:create': { input: TransactionInput; output: TransactionDto }
+  'transactions:update': { input: { id: number; input: TransactionInput }; output: TransactionDto }
+  'transactions:delete': { input: { id: number }; output: null }
 }
 
 export type IpcChannel = keyof IpcContract
@@ -32,7 +39,13 @@ const channelSet: Record<IpcChannel, true> = {
   'members:create': true,
   'members:rename': true,
   'members:delete': true,
-  'tags:list': true
+  'tags:list': true,
+  'categories:list': true,
+  'products:list': true,
+  'transactions:list': true,
+  'transactions:create': true,
+  'transactions:update': true,
+  'transactions:delete': true
 }
 
 /** Allowlist enforced by the preload. */

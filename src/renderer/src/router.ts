@@ -4,7 +4,8 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    { path: '/', redirect: '/accounts' },
+    { path: '/', redirect: '/transactions' },
+    { path: '/transactions', component: () => import('./pages/TransactionsPage.vue') },
     { path: '/accounts', component: () => import('./pages/AccountsPage.vue') },
     { path: '/members', component: () => import('./pages/MembersPage.vue') }
   ]

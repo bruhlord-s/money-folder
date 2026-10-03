@@ -3,6 +3,7 @@ export const en = {
     title: 'Money Folder'
   },
   nav: {
+    transactions: 'Expenses',
     accounts: 'Accounts',
     members: 'Family'
   },
@@ -12,6 +13,63 @@ export const en = {
     edit: 'Edit',
     delete: 'Delete',
     none: '—'
+  },
+  transactions: {
+    title: 'Expenses',
+    new: 'New expense',
+    edit: 'Edit expense',
+    empty: 'No expenses yet. Add the first one.',
+    itemize: 'Add products',
+    singleAmount: 'Single amount',
+    addLine: 'Add line',
+    removeLine: 'Remove line',
+    total: 'Total',
+    columns: {
+      date: 'Date',
+      category: 'Category',
+      account: 'Account',
+      details: 'Details',
+      total: 'Total'
+    },
+    fields: {
+      date: 'Date',
+      account: 'Account',
+      category: 'Category',
+      note: 'Note',
+      amount: 'Amount',
+      product: 'Product',
+      brand: 'Brand',
+      size: 'Size',
+      unit: 'Unit',
+      quantity: 'Qty'
+    },
+    hints: {
+      category: 'For example Taxi or Walmart',
+      newCategory: 'Create category "{name}"',
+      noAccounts: 'No accounts yet. Add one on the Accounts page.',
+      lines: 'Size is per package: milk 1 L × 3 packs. Leave it empty for goods sold by weight.'
+    },
+    errors: {
+      accountId: 'Choose an account',
+      categoryName: 'Enter a category, up to 60 characters',
+      amount: 'Enter an amount greater than zero',
+      lines: 'Check the highlighted lines: each needs an amount and a quantity greater than zero',
+      note: 'Up to 200 characters'
+    },
+    deleteConfirm: {
+      header: 'Delete expense?',
+      message: 'The {category} expense from {date} will be deleted permanently.'
+    },
+    toast: {
+      created: 'Expense added',
+      updated: 'Expense saved',
+      deleted: 'Expense deleted'
+    }
+  },
+  units: {
+    pcs: 'pcs',
+    kg: 'kg',
+    l: 'L'
   },
   accounts: {
     title: 'Accounts',
@@ -88,6 +146,7 @@ export const en = {
     VALIDATION: 'Some fields are invalid',
     NOT_FOUND: 'It no longer exists. The list was refreshed.',
     CONFLICT: 'This name is already taken',
+    IN_USE: 'It is still used by expenses, so it cannot be deleted. Archive it instead.',
     INTERNAL: 'Something went wrong. Details are in the log.'
   }
 }

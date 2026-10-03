@@ -12,6 +12,7 @@ import {
 } from '../repositories/accounts.repository'
 import { findMember } from '../repositories/family-members.repository'
 import { replaceAccountTags, upsertTagsByName } from '../repositories/tags.repository'
+import { accountHasTransactions } from '../repositories/transactions.repository'
 
 export interface AccountsService {
   list(options: { includeArchived: boolean }): AccountDto[]
@@ -83,7 +84,12 @@ export function createAccountsService({ db, logger, now }: Deps): AccountsServic
     },
 
     remove(id) {
-      if (!deleteAccount(db, id)) throw notFound(id)
+      db.transaction((tx) => {
+        if (accountHasTransactions(tx, id)) {
+          throw new DomainError('IN_USE', `account ${id} has transactions`)
+        }
+        if (!deleteAccount(tx, id)) throw notFound(id)
+      })
       log.info('account deleted', { accountId: id })
     }
   }
