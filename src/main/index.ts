@@ -5,6 +5,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { createContainer, type Container } from './container'
 import { getLogsFolder, initLogging } from './logging/electron-logger'
+import { errorMessages } from './logging/format-error'
 import { registerIpcHandlers } from './ipc'
 import { buildAppMenu } from './menu'
 
@@ -100,10 +101,7 @@ void app.whenReady().then(() => {
     registerIpcHandlers(container)
   } catch (error) {
     logger.error('failed to open database', { error })
-    dialog.showErrorBox(
-      'Failed to open the database',
-      error instanceof Error ? error.message : String(error)
-    )
+    dialog.showErrorBox('Failed to open the database', errorMessages(error))
     app.quit()
     return
   }
