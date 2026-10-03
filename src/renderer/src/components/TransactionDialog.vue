@@ -10,6 +10,7 @@ import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import SelectButton from 'primevue/selectbutton'
 import type { AccountDto } from '@shared/accounts'
+import { nameKey } from '@shared/common'
 import {
   BRAND_MAX,
   CATEGORY_KINDS,
@@ -197,22 +198,16 @@ function startOfToday(): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate())
 }
 
-function sameName(a: string, b: string): boolean {
-  return a.toLowerCase() === b.toLowerCase()
-}
-
 /** Existing categories that match, then the typed text itself so a new category can be created. */
 function suggestCategories(event: AutoCompleteCompleteEvent): void {
   const query = event.query.trim()
-  const matches = categories.value.filter((name) =>
-    name.toLowerCase().includes(query.toLowerCase())
-  )
-  const exists = categories.value.some((name) => sameName(name, query))
+  const matches = categories.value.filter((name) => nameKey(name).includes(nameKey(query)))
+  const exists = categories.value.some((name) => nameKey(name) === nameKey(query))
   categorySuggestions.value = query && !exists ? [...matches, query] : matches
 }
 
 function isNewCategory(name: string): boolean {
-  return !categories.value.some((category) => sameName(category, name))
+  return !categories.value.some((category) => nameKey(category) === nameKey(name))
 }
 
 function suggestProducts(event: AutoCompleteCompleteEvent): void {

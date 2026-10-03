@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema } from '@shared/accounts'
+import { idSchema } from '@shared/common'
 import type { Logger } from '@shared/logger'
 import { transactionInputSchema } from '@shared/transactions'
 import type { TransactionsService } from '../services/transactions.service'

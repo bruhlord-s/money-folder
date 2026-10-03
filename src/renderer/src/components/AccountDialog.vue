@@ -8,6 +8,7 @@ import InputText from 'primevue/inputtext'
 import KeyFilter from 'primevue/keyfilter'
 import Select from 'primevue/select'
 import { ACCOUNT_NAME_MAX, accountInputSchema, type AccountDto } from '@shared/accounts'
+import { nameKey } from '@shared/common'
 import type { FamilyMemberDto } from '@shared/family-members'
 import { useApi } from '../composables/use-api'
 
@@ -72,17 +73,17 @@ async function onLastFourInput(value: string | undefined): Promise<void> {
  */
 function suggestTags(event: AutoCompleteCompleteEvent): void {
   const query = event.query.trim()
-  const lower = query.toLowerCase()
-  const chosen = new Set(form.tagNames.map((name) => name.toLowerCase()))
+  const key = nameKey(query)
+  const chosen = new Set(form.tagNames.map(nameKey))
   const matches = allTags.value.filter(
-    (name) => name.toLowerCase().includes(lower) && !chosen.has(name.toLowerCase())
+    (name) => nameKey(name).includes(key) && !chosen.has(nameKey(name))
   )
-  const exists = allTags.value.some((name) => name.toLowerCase() === lower)
-  tagSuggestions.value = query && !exists && !chosen.has(lower) ? [...matches, query] : matches
+  const exists = allTags.value.some((name) => nameKey(name) === key)
+  tagSuggestions.value = query && !exists && !chosen.has(key) ? [...matches, query] : matches
 }
 
 function isNewTag(name: string): boolean {
-  return !allTags.value.some((tag) => tag.toLowerCase() === name.toLowerCase())
+  return !allTags.value.some((tag) => nameKey(tag) === nameKey(name))
 }
 
 /** Turns text typed in the tags box but not yet confirmed into a tag. */
@@ -90,7 +91,7 @@ function commitTypedTag(): void {
   const input = tagsField.value?.querySelector('input')
   const name = input?.value.trim()
   if (!input || !name) return
-  if (!form.tagNames.some((tag) => tag.toLowerCase() === name.toLowerCase())) {
+  if (!form.tagNames.some((tag) => nameKey(tag) === nameKey(name))) {
     form.tagNames = [...form.tagNames, name]
   }
   input.value = ''

@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { accountInputSchema, idSchema } from '@shared/accounts'
+import { accountInputSchema } from '@shared/accounts'
+import { idSchema } from '@shared/common'
 import type { Logger } from '@shared/logger'
 import type { AccountsService } from '../services/accounts.service'
 import { createHandler, type HandlerEntry } from './handler'
