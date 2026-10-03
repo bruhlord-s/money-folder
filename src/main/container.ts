@@ -1,6 +1,12 @@
-import type { Logger } from '../shared/logger'
-import { openDatabase, type Db } from './db/client'
+import type { Logger } from '@shared/logger'
+import { openDatabase } from './db/client'
 import { runMigrations } from './db/migrate'
+import { createAccountsService, type AccountsService } from './services/accounts.service'
+import {
+  createFamilyMembersService,
+  type FamilyMembersService
+} from './services/family-members.service'
+import { createTagsService, type TagsService } from './services/tags.service'
 
 interface ContainerConfig {
   dbPath: string
@@ -11,7 +17,11 @@ interface ContainerConfig {
 }
 
 export interface Container {
-  db: Db
+  services: {
+    accounts: AccountsService
+    members: FamilyMembersService
+    tags: TagsService
+  }
   logger: Logger
   dispose: () => void
 }
@@ -35,8 +45,15 @@ export function createContainer({
     throw error
   }
 
+  const now = (): Date => new Date()
+  const services = {
+    accounts: createAccountsService({ db, logger, now }),
+    members: createFamilyMembersService({ db, logger, now }),
+    tags: createTagsService({ db })
+  }
+
   return {
-    db,
+    services,
     logger,
     dispose: () => db.$client.close()
   }

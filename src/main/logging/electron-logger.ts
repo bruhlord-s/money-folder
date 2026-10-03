@@ -1,6 +1,6 @@
 import { dirname } from 'path'
 import log from 'electron-log/main'
-import type { Logger, LogMeta } from '../../shared/logger'
+import type { Logger, LogMeta } from '@shared/logger'
 
 export type LogLevel = 'info' | 'debug'
 
