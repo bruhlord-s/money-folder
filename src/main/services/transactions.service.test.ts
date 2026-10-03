@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { accountInputSchema } from '@shared/accounts'
 import { noopLogger } from '@shared/logger'
-import { transactionInputSchema, type TransactionInput } from '@shared/transactions'
+import {
+  transactionInputSchema,
+  type TransactionInput,
+  type ValidTransactionInput
+} from '@shared/transactions'
 import type { Db } from '../db/client'
 import { DomainError } from '../errors'
 import { createTestDb } from '../testing/test-db'
@@ -11,7 +15,10 @@ import { createProductsService } from './products.service'
 import { createTransactionsService, type TransactionsService } from './transactions.service'
 
 const NOW = new Date('2026-10-03T12:00:00Z')
-const DAY = new Date('2026-10-02T00:00:00Z').getTime()
+const DAY = '2026-10-02'
+
+type Categorized = Extract<TransactionInput, { kind: 'expense' }>
+type Transfer = Extract<TransactionInput, { kind: 'transfer' }>
 
 const milk = { name: 'Milk', brand: 'Prostokvashino', size: 1000, unit: 'l' as const }
 const eggs = { name: 'Eggs', brand: 'Selo', size: 10_000, unit: 'pcs' as const }
@@ -21,18 +28,43 @@ describe('transactions service', () => {
   let accounts: AccountsService
   let transactions: TransactionsService
   let accountId: number
+  let savingsId: number
 
-  function input(
-    overrides: Partial<TransactionInput> = {}
-  ): ReturnType<typeof transactionInputSchema.parse> {
+  function input(overrides: Partial<Omit<Categorized, 'kind'>> = {}): ValidTransactionInput {
     return transactionInputSchema.parse({
+      kind: 'expense',
       accountId,
       categoryName: 'Taxi',
-      occurredAt: DAY,
+      occurredOn: DAY,
       note: null,
       lines: [{ product: null, quantity: 1000, amount: 50_000 }],
       ...overrides
     })
+  }
+
+  function income(overrides: Partial<Omit<Categorized, 'kind'>> = {}): ValidTransactionInput {
+    return transactionInputSchema.parse({
+      ...input({ categoryName: 'Salary', ...overrides }),
+      kind: 'income'
+    })
+  }
+
+  function transfer(overrides: Partial<Omit<Transfer, 'kind'>> = {}): ValidTransactionInput {
+    return transactionInputSchema.parse({
+      kind: 'transfer',
+      accountId,
+      toAccountId: savingsId,
+      occurredOn: DAY,
+      note: null,
+      amount: 1_000_000,
+      ...overrides
+    })
+  }
+
+  function createAccount(name: string): number {
+    return accounts.create(
+      accountInputSchema.parse({ name, lastFour: null, ownerId: null, tagNames: [] })
+    ).id
   }
 
   const receipt = (): ReturnType<typeof input> =>
@@ -49,18 +81,19 @@ describe('transactions service', () => {
     const deps = { db, logger: noopLogger, now: () => NOW }
     accounts = createAccountsService(deps)
     transactions = createTransactionsService(deps)
-    accountId = accounts.create(
-      accountInputSchema.parse({ name: 'Card', lastFour: null, ownerId: null, tagNames: [] })
-    ).id
+    accountId = createAccount('Card')
+    savingsId = createAccount('Savings')
   })
 
   it('records a single-amount expense like a taxi ride', () => {
     const taxi = transactions.create(input())
 
     expect(taxi).toMatchObject({
+      kind: 'expense',
       account: { id: accountId, name: 'Card' },
-      category: { name: 'Taxi' },
-      occurredAt: DAY,
+      toAccount: null,
+      category: { kind: 'expense', name: 'Taxi' },
+      occurredOn: DAY,
       note: null,
       total: 50_000,
       lines: [{ product: null, quantity: 1000, amount: 50_000 }]
@@ -94,7 +127,7 @@ describe('transactions service', () => {
     expect(createProductsService({ db }).list()).toHaveLength(2)
     expect(
       createCategoriesService({ db })
-        .list()
+        .list('expense')
         .map((c) => c.name)
     ).toEqual(['Walmart'])
   })
@@ -129,7 +162,7 @@ describe('transactions service', () => {
   })
 
   it('lists newest first', () => {
-    const older = transactions.create(input({ occurredAt: DAY - 86_400_000 }))
+    const older = transactions.create(input({ occurredOn: '2026-10-01' }))
     const newer = transactions.create(input())
 
     expect(transactions.list().map((t) => t.id)).toEqual([newer.id, older.id])
@@ -138,15 +171,15 @@ describe('transactions service', () => {
   it('lists more transactions than SQLite allows bound parameters', () => {
     const count = 33_000
     const insertTransaction = db.$client.prepare(
-      'INSERT INTO transactions (account_id, category_id, occurred_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+      "INSERT INTO transactions (kind, account_id, category_id, occurred_on, created_at, updated_at) VALUES ('expense', ?, ?, ?, 0, 0)"
     )
     const insertLine = db.$client.prepare(
       'INSERT INTO transaction_lines (transaction_id, amount) VALUES (?, 100)'
     )
-    const categoryId = transactions.create(input()).category.id
+    const categoryId = transactions.create(input()).category?.id
     db.$client.transaction(() => {
       for (let i = 0; i < count; i++) {
-        const { lastInsertRowid } = insertTransaction.run(accountId, categoryId, DAY, DAY, DAY)
+        const { lastInsertRowid } = insertTransaction.run(accountId, categoryId, DAY)
         insertLine.run(lastInsertRowid)
       }
     })()
@@ -174,6 +207,56 @@ describe('transactions service', () => {
     transactions.create(input())
 
     expect(() => accounts.remove(accountId)).toThrow(expect.objectContaining({ code: 'IN_USE' }))
-    expect(accounts.list({ includeArchived: true })).toHaveLength(1)
+    expect(accounts.list({ includeArchived: true })).toHaveLength(2)
+  })
+
+  it('records an income with a category of its own kind', () => {
+    transactions.create(input({ categoryName: 'Gifts' }))
+    const gift = transactions.create(income({ categoryName: 'Gifts' }))
+
+    expect(gift).toMatchObject({ kind: 'income', category: { kind: 'income', name: 'Gifts' } })
+    const categories = createCategoriesService({ db })
+    const [incomeGifts] = categories.list('income')
+    const [expenseGifts] = categories.list('expense')
+    expect(incomeGifts?.name).toBe('Gifts')
+    expect(expenseGifts?.name).toBe('Gifts')
+    expect(incomeGifts?.id).not.toBe(expenseGifts?.id)
+  })
+
+  it('records a transfer as one plain line without a category', () => {
+    const moved = transactions.create(transfer())
+
+    expect(moved).toMatchObject({
+      kind: 'transfer',
+      account: { id: accountId, name: 'Card' },
+      toAccount: { id: savingsId, name: 'Savings' },
+      category: null,
+      total: 1_000_000,
+      lines: [{ product: null, quantity: 1000, amount: 1_000_000 }]
+    })
+  })
+
+  it('turns an expense into a transfer on update', () => {
+    const taxi = transactions.create(input())
+    const updated = transactions.update(taxi.id, transfer())
+
+    expect(updated).toMatchObject({
+      kind: 'transfer',
+      category: null,
+      toAccount: { id: savingsId }
+    })
+    expect(updated.lines).toHaveLength(1)
+  })
+
+  it('rejects a transfer to an unknown account', () => {
+    expect(() => transactions.create(transfer({ toAccountId: 999 }))).toThrow(
+      expect.objectContaining({ code: 'NOT_FOUND' })
+    )
+  })
+
+  it('refuses to delete the target account of a transfer', () => {
+    transactions.create(transfer())
+
+    expect(() => accounts.remove(savingsId)).toThrow(expect.objectContaining({ code: 'IN_USE' }))
   })
 })

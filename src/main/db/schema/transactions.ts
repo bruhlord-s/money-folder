@@ -3,26 +3,45 @@ import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-cor
 import { accounts } from './accounts'
 import { categories } from './categories'
 import { products } from './products'
+// Keep in sync with TRANSACTION_KINDS in @shared/transactions (drizzle-kit can't resolve the alias).
+const KINDS = ['expense', 'income', 'transfer'] as const
 
 export const transactions = sqliteTable(
   'transactions',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
+    /** Amounts are always positive; the kind gives the direction. */
+    kind: text('kind', { enum: KINDS }).notNull(),
+    /** The account the money leaves (expense, transfer) or arrives at (income). */
     accountId: integer('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'restrict' }),
-    categoryId: integer('category_id')
-      .notNull()
-      .references(() => categories.id, { onDelete: 'restrict' }),
-    occurredAt: integer('occurred_at', { mode: 'timestamp_ms' }).notNull(),
+    /** Transfers only: the account the money arrives at. */
+    toAccountId: integer('to_account_id').references(() => accounts.id, { onDelete: 'restrict' }),
+    /** Null for transfers. Its kind matches the transaction's kind. */
+    categoryId: integer('category_id').references(() => categories.id, { onDelete: 'restrict' }),
+    /** A local calendar date, 'YYYY-MM-DD'. Not an instant, so it never shifts with the timezone. */
+    occurredOn: text('occurred_on').notNull(),
     note: text('note'),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull()
   },
   (t) => [
+    check('transactions_kind', sql`${t.kind} IN ('expense', 'income', 'transfer')`),
+    check(
+      'transactions_transfer_target',
+      sql`(${t.kind} = 'transfer') = (${t.toAccountId} IS NOT NULL)`
+    ),
+    check('transactions_transfer_other_account', sql`${t.toAccountId} <> ${t.accountId}`),
+    check('transactions_category', sql`(${t.kind} = 'transfer') = (${t.categoryId} IS NULL)`),
+    check(
+      'transactions_occurred_on_date',
+      sql`${t.occurredOn} GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'`
+    ),
     index('transactions_account_id_idx').on(t.accountId),
+    index('transactions_to_account_id_idx').on(t.toAccountId),
     index('transactions_category_id_idx').on(t.categoryId),
-    index('transactions_occurred_at_idx').on(t.occurredAt)
+    index('transactions_occurred_on_idx').on(t.occurredOn)
   ]
 )
 

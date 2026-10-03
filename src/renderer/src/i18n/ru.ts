@@ -5,7 +5,7 @@ export const ru: MessageSchema = {
     title: 'Money Folder'
   },
   nav: {
-    transactions: 'Расходы',
+    transactions: 'Операции',
     accounts: 'Счета',
     members: 'Семья'
   },
@@ -17,15 +17,20 @@ export const ru: MessageSchema = {
     none: '—'
   },
   transactions: {
-    title: 'Расходы',
-    new: 'Новый расход',
-    edit: 'Изменить расход',
-    empty: 'Расходов пока нет. Добавьте первый.',
+    title: 'Операции',
+    new: 'Новая операция',
+    edit: 'Изменить операцию',
+    empty: 'Операций пока нет. Добавьте первую.',
     itemize: 'Добавить товары',
     singleAmount: 'Одна сумма',
     addLine: 'Добавить строку',
     removeLine: 'Удалить строку',
     total: 'Итого',
+    kinds: {
+      expense: 'Расход',
+      income: 'Доход',
+      transfer: 'Перевод'
+    },
     columns: {
       date: 'Дата',
       category: 'Категория',
@@ -34,8 +39,11 @@ export const ru: MessageSchema = {
       total: 'Сумма'
     },
     fields: {
+      kind: 'Тип',
       date: 'Дата',
       account: 'Счёт',
+      fromAccount: 'Со счёта',
+      toAccount: 'На счёт',
       category: 'Категория',
       note: 'Заметка',
       amount: 'Сумма',
@@ -47,25 +55,27 @@ export const ru: MessageSchema = {
     },
     hints: {
       category: 'Например, Такси или Пятёрочка',
+      incomeCategory: 'Например, Зарплата или Подарки',
       newCategory: 'Создать категорию «{name}»',
       noAccounts: 'Счетов пока нет. Добавьте счёт на странице «Счета».',
       lines: 'Объём — на одну упаковку: молоко 1 л × 3 шт. Для весовых товаров оставьте пустым.'
     },
     errors: {
       accountId: 'Выберите счёт',
+      toAccountId: 'Выберите другой счёт',
       categoryName: 'Введите категорию, до 60 символов',
       amount: 'Введите сумму больше нуля',
       lines: 'Проверьте выделенные строки: сумма и количество должны быть больше нуля',
       note: 'До 200 символов'
     },
     deleteConfirm: {
-      header: 'Удалить расход?',
-      message: 'Расход «{category}» от {date} будет удалён навсегда.'
+      header: 'Удалить операцию?',
+      message: 'Операция «{what}» от {date} будет удалена навсегда.'
     },
     toast: {
-      created: 'Расход добавлен',
-      updated: 'Расход сохранён',
-      deleted: 'Расход удалён'
+      created: 'Операция добавлена',
+      updated: 'Операция сохранена',
+      deleted: 'Операция удалена'
     }
   },
   units: {
@@ -149,7 +159,7 @@ export const ru: MessageSchema = {
     VALIDATION: 'Некоторые поля заполнены неверно',
     NOT_FOUND: 'Запись уже удалена. Список обновлён.',
     CONFLICT: 'Это имя уже занято',
-    IN_USE: 'Запись используется в расходах, поэтому её нельзя удалить. Отправьте её в архив.',
+    IN_USE: 'Запись используется в операциях, поэтому её нельзя удалить. Отправьте её в архив.',
     INTERNAL: 'Что-то пошло не так. Подробности в журнале.'
   }
 }
