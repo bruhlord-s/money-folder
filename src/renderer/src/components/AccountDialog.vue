@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { nextTick, reactive, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AutoComplete, { type AutoCompleteCompleteEvent } from 'primevue/autocomplete'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
+import KeyFilter from 'primevue/keyfilter'
 import Select from 'primevue/select'
 import { ACCOUNT_NAME_MAX, accountInputSchema, type AccountDto } from '@shared/accounts'
 import type { FamilyMemberDto } from '@shared/family-members'
@@ -30,6 +31,10 @@ const members = ref<FamilyMemberDto[]>([])
 const allTags = ref<string[]>([])
 const tagSuggestions = ref<string[]>([])
 const saving = ref(false)
+const lastFourField = useTemplateRef<HTMLElement>('lastFourField')
+const tagsField = useTemplateRef<HTMLElement>('tagsField')
+
+const vKeyfilter = KeyFilter
 
 watch(visible, async (isOpen) => {
   if (!isOpen) return
@@ -48,8 +53,17 @@ watch(visible, async (isOpen) => {
   allTags.value = tagList?.map((tag) => tag.name) ?? []
 })
 
-function onLastFourInput(value: string | undefined): void {
+/**
+ * v-keyfilter blocks non-digit keys and pastes; this catches the rest (drop, IME). When stripping
+ * leaves the model unchanged, Vue doesn't re-render, so put the clean value back into the input.
+ */
+async function onLastFourInput(value: string | undefined): Promise<void> {
   form.lastFour = (value ?? '').replace(/\D/g, '').slice(0, 4)
+  await nextTick()
+  const input = lastFourField.value?.querySelector('input')
+  if (input && input.value !== form.lastFour) {
+    input.value = form.lastFour
+  }
 }
 
 /**
@@ -71,22 +85,28 @@ function isNewTag(name: string): boolean {
   return !allTags.value.some((tag) => tag.toLowerCase() === name.toLowerCase())
 }
 
-/**
- * Enter in the tags field must never submit the form. If AutoComplete didn't pick a suggestion
- * (its input still has text), add the typed text as a tag.
- */
-function onTagsEnter(event: KeyboardEvent): void {
-  event.preventDefault()
-  const input = event.target as HTMLInputElement
-  const name = input.value.trim()
-  if (!name) return
+/** Turns text typed in the tags box but not yet confirmed into a tag. */
+function commitTypedTag(): void {
+  const input = tagsField.value?.querySelector('input')
+  const name = input?.value.trim()
+  if (!input || !name) return
   if (!form.tagNames.some((tag) => tag.toLowerCase() === name.toLowerCase())) {
     form.tagNames = [...form.tagNames, name]
   }
   input.value = ''
 }
 
+/**
+ * Enter in the tags field must never submit the form. If AutoComplete didn't pick a suggestion
+ * (its input still has text), add the typed text as a tag.
+ */
+function onTagsEnter(event: KeyboardEvent): void {
+  event.preventDefault()
+  commitTypedTag()
+}
+
 async function save(): Promise<void> {
+  commitTypedTag()
   const parsed = accountInputSchema.safeParse({
     name: form.name,
     lastFour: form.lastFour === '' ? null : form.lastFour,
@@ -139,10 +159,11 @@ async function save(): Promise<void> {
         <small v-if="errors.name" class="field-error">{{ errors.name }}</small>
       </div>
 
-      <div class="field">
+      <div ref="lastFourField" class="field">
         <label for="account-last-four">{{ t('accounts.fields.lastFour') }}</label>
         <InputText
           id="account-last-four"
+          v-keyfilter="/\d/"
           :model-value="form.lastFour"
           inputmode="numeric"
           maxlength="4"
@@ -169,7 +190,7 @@ async function save(): Promise<void> {
         />
       </div>
 
-      <div class="field">
+      <div ref="tagsField" class="field">
         <label for="account-tags">{{ t('accounts.fields.tags') }}</label>
         <AutoComplete
           v-model="form.tagNames"

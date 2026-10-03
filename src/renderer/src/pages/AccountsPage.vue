@@ -21,9 +21,15 @@ const showArchived = ref(false)
 const dialogVisible = ref(false)
 const editing = ref<AccountDto | null>(null)
 
+let latestLoad = 0
+
+/** Reloads the list. Only the most recent call applies its result, so toggling fast can't show a stale list. */
 async function load(): Promise<void> {
+  const requestId = ++latestLoad
   loading.value = true
-  accounts.value = (await call('accounts:list', { includeArchived: showArchived.value })) ?? []
+  const result = await call('accounts:list', { includeArchived: showArchived.value })
+  if (requestId !== latestLoad) return
+  accounts.value = result ?? []
   loading.value = false
 }
 
