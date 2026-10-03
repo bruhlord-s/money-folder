@@ -1,7 +1,7 @@
 import { and, asc, eq } from 'drizzle-orm'
 import type { ProductDto, ProductInput } from '@shared/transactions'
 import type { Executor } from '../db/client'
-import { nameKey } from '../db/name-key'
+import { nameKey } from '@shared/common'
 import { products } from '../db/schema'
 
 export const productColumns = {

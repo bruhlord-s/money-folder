@@ -1,7 +1,7 @@
 import { asc, eq, inArray } from 'drizzle-orm'
 import type { TagDto } from '@shared/tags'
 import type { Executor } from '../db/client'
-import { nameKey } from '../db/name-key'
+import { nameKey } from '@shared/common'
 import { accountTags, tags } from '../db/schema'
 
 export function listTags(ex: Executor): TagDto[] {

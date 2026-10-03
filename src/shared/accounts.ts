@@ -1,12 +1,11 @@
 import { z } from 'zod'
+import { idSchema, nameKey } from './common'
 import type { FamilyMemberDto } from './family-members'
 import type { TagDto } from './tags'
 
 export const ACCOUNT_NAME_MAX = 100
 const TAG_NAME_MAX = 40
 const TAGS_PER_ACCOUNT_MAX = 20
-
-export const idSchema = z.number().int().positive()
 
 const tagNamesSchema = z
   .array(z.string().trim().min(1).max(TAG_NAME_MAX))
@@ -15,7 +14,7 @@ const tagNamesSchema = z
   .transform((names) => {
     const seen = new Set<string>()
     return names.filter((name) => {
-      const key = name.toLowerCase()
+      const key = nameKey(name)
       if (seen.has(key)) return false
       seen.add(key)
       return true

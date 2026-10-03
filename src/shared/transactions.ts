@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema } from './accounts'
+import { idSchema } from './common'
 
 export const CATEGORY_NAME_MAX = 60
 export const PRODUCT_NAME_MAX = 100

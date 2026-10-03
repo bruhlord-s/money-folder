@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema } from '@shared/accounts'
+import { idSchema } from '@shared/common'
 import { memberInputSchema } from '@shared/family-members'
 import type { Logger } from '@shared/logger'
 import type { FamilyMembersService } from '../services/family-members.service'

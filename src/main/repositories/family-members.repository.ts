@@ -1,7 +1,7 @@
 import { and, asc, eq, ne } from 'drizzle-orm'
 import type { FamilyMemberDto } from '@shared/family-members'
 import type { Executor } from '../db/client'
-import { nameKey } from '../db/name-key'
+import { nameKey } from '@shared/common'
 import { familyMembers } from '../db/schema'
 
 const memberColumns = { id: familyMembers.id, name: familyMembers.name }
