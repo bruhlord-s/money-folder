@@ -1,7 +1,20 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { createContainer, type Container } from './container'
+
+let container: Container | undefined
+
+function initContainer(): Container {
+  return createContainer({
+    dbPath: join(app.getPath('userData'), 'money-folder.db'),
+    // Packaged builds ship migrations as extraResources (see electron-builder.yml).
+    migrationsFolder: app.isPackaged
+      ? join(process.resourcesPath, 'migrations')
+      : join(app.getAppPath(), 'src/main/db/migrations')
+  })
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -49,6 +62,17 @@ void app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  try {
+    container = initContainer()
+  } catch (error) {
+    dialog.showErrorBox(
+      'Failed to open the database',
+      error instanceof Error ? error.message : String(error)
+    )
+    app.quit()
+    return
+  }
+
   createWindow()
 
   app.on('activate', function () {
@@ -65,6 +89,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('will-quit', () => {
+  container?.dispose()
+  container = undefined
 })
 
 // In this file you can include the rest of your app's specific main process
