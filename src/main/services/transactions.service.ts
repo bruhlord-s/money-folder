@@ -1,5 +1,5 @@
 import type { Logger } from '@shared/logger'
-import type { TransactionDto, ValidTransactionInput } from '@shared/transactions'
+import { MILLI, type TransactionDto, type ValidTransactionInput } from '@shared/transactions'
 import type { Db, Executor } from '../db/client'
 import { DomainError } from '../errors'
 import { findAccount } from '../repositories/accounts.repository'
@@ -41,27 +41,34 @@ export function createTransactionsService({ db, logger, now }: Deps): Transactio
     return transaction
   }
 
-  /** Checks the account and resolves names to ids, creating categories and products on first use. */
-  function prepare(
-    ex: Executor,
-    { accountId, categoryName, occurredAt, note }: ValidTransactionInput
-  ): TransactionValues {
+  function assertAccountExists(ex: Executor, accountId: number): void {
     if (!findAccount(ex, accountId)) {
       throw new DomainError('NOT_FOUND', `account ${accountId} not found`)
     }
+  }
+
+  /** Checks the accounts and resolves names to ids, creating categories on first use. */
+  function prepare(ex: Executor, input: ValidTransactionInput): TransactionValues {
+    assertAccountExists(ex, input.accountId)
+    const common = { accountId: input.accountId, occurredOn: input.occurredOn, note: input.note }
+    if (input.kind === 'transfer') {
+      assertAccountExists(ex, input.toAccountId)
+      return { ...common, kind: 'transfer', toAccountId: input.toAccountId, categoryId: null }
+    }
     return {
-      accountId,
-      categoryId: upsertCategoryByName(ex, categoryName),
-      occurredAt: new Date(occurredAt),
-      note
+      ...common,
+      kind: input.kind,
+      toAccountId: null,
+      categoryId: upsertCategoryByName(ex, input.kind, input.categoryName)
     }
   }
 
-  function saveLines(
-    ex: Executor,
-    transactionId: number,
-    lines: ValidTransactionInput['lines']
-  ): void {
+  /** Saves the receipt lines, creating products on first use. A transfer is one plain line. */
+  function saveLines(ex: Executor, transactionId: number, input: ValidTransactionInput): void {
+    const lines =
+      input.kind === 'transfer'
+        ? [{ product: null, quantity: MILLI, amount: input.amount }]
+        : input.lines
     replaceLines(
       ex,
       transactionId,
@@ -79,7 +86,7 @@ export function createTransactionsService({ db, logger, now }: Deps): Transactio
     create(input) {
       const transaction = db.transaction((tx) => {
         const id = insertTransaction(tx, prepare(tx, input), now())
-        saveLines(tx, id, input.lines)
+        saveLines(tx, id, input)
         return getTransaction(tx, id)
       })
       log.info('transaction created', { transactionId: transaction.id })
@@ -89,7 +96,7 @@ export function createTransactionsService({ db, logger, now }: Deps): Transactio
     update(id, input) {
       const transaction = db.transaction((tx) => {
         if (!updateTransaction(tx, id, prepare(tx, input), now())) throw notFound(id)
-        saveLines(tx, id, input.lines)
+        saveLines(tx, id, input)
         return getTransaction(tx, id)
       })
       log.info('transaction updated', { transactionId: id })

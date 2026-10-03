@@ -8,22 +8,29 @@ import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
+import SelectButton from 'primevue/selectbutton'
 import type { AccountDto } from '@shared/accounts'
 import {
   BRAND_MAX,
+  CATEGORY_KINDS,
   CATEGORY_NAME_MAX,
+  CURRENCY,
   KOPECKS,
   MILLI,
   NOTE_MAX,
   PRODUCT_NAME_MAX,
   PRODUCT_UNITS,
+  TRANSACTION_KINDS,
   transactionInputSchema,
+  type CategoryKind,
   type ProductDto,
   type ProductUnit,
-  type TransactionDto
+  type TransactionDto,
+  type TransactionKind
 } from '@shared/transactions'
 import { useApi } from '../composables/use-api'
 import { useFormat } from '../composables/use-format'
+import { fromLocalDate, toLocalDate } from '../local-date'
 
 const props = defineProps<{ transaction: TransactionDto | null }>()
 const visible = defineModel<boolean>('visible', { required: true })
@@ -44,23 +51,38 @@ interface LineForm {
   amount: number | null
 }
 
-type Field = 'accountId' | 'categoryName' | 'amount' | 'note' | 'lines'
+type Field = 'accountId' | 'toAccountId' | 'categoryName' | 'amount' | 'note' | 'lines'
 
-const form = reactive({
+interface TransactionForm {
+  kind: TransactionKind
+  occurredAt: Date
+  accountId: number | null
+  /** Transfers only. */
+  toAccountId: number | null
+  categoryName: string
+  note: string
+  /** false: one amount (taxi). true: a table of receipt lines, for expenses only. */
+  itemized: boolean
+  amount: number | null
+  lines: LineForm[]
+}
+
+const form = reactive<TransactionForm>({
+  kind: 'expense',
   occurredAt: new Date(),
-  accountId: null as number | null,
+  accountId: null,
+  toAccountId: null,
   categoryName: '',
   note: '',
-  /** false: one amount (taxi). true: a table of receipt lines. */
   itemized: false,
-  amount: null as number | null,
-  lines: [] as LineForm[]
+  amount: null,
+  lines: []
 })
 const errors = ref<Partial<Record<Field, string>>>({})
 /** Keys of lines that failed validation. */
 const invalidLines = ref(new Set<number>())
 const accounts = ref<AccountDto[]>([])
-const categories = ref<string[]>([])
+const categoriesByKind = ref<Record<CategoryKind, string[]>>({ expense: [], income: [] })
 const products = ref<ProductDto[]>([])
 const categorySuggestions = ref<string[]>([])
 const productSuggestions = ref<ProductDto[]>([])
@@ -68,13 +90,35 @@ const saving = ref(false)
 
 let nextKey = 0
 
+const kindOptions = computed(() =>
+  TRANSACTION_KINDS.map((kind) => ({ value: kind, label: t(`transactions.kinds.${kind}`) }))
+)
+
+/** Category names of the current kind; transfers have none. */
+const categories = computed(() =>
+  form.kind === 'transfer' ? [] : categoriesByKind.value[form.kind]
+)
+
 const unitOptions = computed(() =>
   PRODUCT_UNITS.map((unit) => ({ value: unit, label: t(`units.${unit}`) }))
 )
 
-/** Active accounts, plus the transaction's own account even if it was archived since. */
+/** Active accounts, plus the transaction's own accounts even if they were archived since. */
 const accountOptions = computed(() =>
-  accounts.value.filter((account) => !account.archived || account.id === form.accountId)
+  accounts.value.filter(
+    (account) =>
+      !account.archived || account.id === form.accountId || account.id === form.toAccountId
+  )
+)
+
+const dialogWidth = computed(() => {
+  if (form.itemized) return '64rem'
+  return form.kind === 'transfer' ? '38rem' : '30rem'
+})
+
+/** A transfer goes to another account. */
+const toAccountOptions = computed(() =>
+  accountOptions.value.filter((account) => account.id !== form.accountId)
 )
 
 const linesTotal = computed(() => form.lines.reduce((sum, line) => sum + toKopecks(line.amount), 0))
@@ -104,9 +148,11 @@ watch(visible, async (isOpen) => {
   const transaction = props.transaction
   errors.value = {}
   invalidLines.value = new Set()
-  form.occurredAt = transaction ? new Date(transaction.occurredAt) : startOfToday()
+  form.kind = transaction?.kind ?? 'expense'
+  form.occurredAt = transaction ? fromLocalDate(transaction.occurredOn) : startOfToday()
   form.accountId = transaction?.account.id ?? null
-  form.categoryName = transaction?.category.name ?? ''
+  form.toAccountId = transaction?.toAccount?.id ?? null
+  form.categoryName = transaction?.category?.name ?? ''
   form.note = transaction?.note ?? ''
 
   const lines = transaction?.lines ?? []
@@ -126,16 +172,25 @@ watch(visible, async (isOpen) => {
       }))
     : []
 
-  const [accountList, categoryList, productList] = await Promise.all([
+  const [accountList, productList, ...categoryLists] = await Promise.all([
     call('accounts:list', { includeArchived: true }),
-    call('categories:list', null),
-    call('products:list', null)
+    call('products:list', null),
+    ...CATEGORY_KINDS.map((kind) => call('categories:list', { kind }))
   ])
   accounts.value = accountList ?? []
-  categories.value = categoryList?.map((category) => category.name) ?? []
   products.value = productList ?? []
+  CATEGORY_KINDS.forEach((kind, i) => {
+    categoriesByKind.value[kind] = categoryLists[i]?.map((category) => category.name) ?? []
+  })
   form.accountId ??= accountOptions.value[0]?.id ?? null
 })
+
+/** Receipt lines are for expenses; other kinds go back to a single amount. */
+function onKindChange(): void {
+  errors.value = {}
+  invalidLines.value = new Set()
+  if (form.kind !== 'expense' && form.itemized) useSingleAmount()
+}
 
 function startOfToday(): Date {
   const now = new Date()
@@ -195,6 +250,19 @@ function removeLine(key: number): void {
   if (form.lines.length === 0) useSingleAmount()
 }
 
+function buildInput(): unknown {
+  const common = {
+    kind: form.kind,
+    accountId: form.accountId,
+    occurredOn: toLocalDate(form.occurredAt),
+    note: form.note
+  }
+  if (form.kind === 'transfer') {
+    return { ...common, toAccountId: form.toAccountId, amount: toKopecks(form.amount) }
+  }
+  return { ...common, categoryName: form.categoryName, lines: buildLines() }
+}
+
 function buildLines(): unknown[] {
   if (!form.itemized) {
     return [{ product: null, quantity: MILLI, amount: toKopecks(form.amount) }]
@@ -215,13 +283,7 @@ function buildLines(): unknown[] {
 }
 
 async function save(): Promise<void> {
-  const parsed = transactionInputSchema.safeParse({
-    accountId: form.accountId,
-    categoryName: form.categoryName,
-    occurredAt: form.occurredAt.getTime(),
-    note: form.note,
-    lines: buildLines()
-  })
+  const parsed = transactionInputSchema.safeParse(buildInput())
   if (!parsed.success) {
     errors.value = {}
     invalidLines.value = new Set()
@@ -262,15 +324,27 @@ async function save(): Promise<void> {
     v-model:visible="visible"
     modal
     :header="transaction ? t('transactions.edit') : t('transactions.new')"
-    :style="{ width: form.itemized ? '64rem' : '30rem' }"
+    :style="{ width: dialogWidth }"
   >
     <form id="transaction-form" novalidate @submit.prevent="save">
+      <SelectButton
+        v-model="form.kind"
+        class="kind"
+        :options="kindOptions"
+        option-label="label"
+        option-value="value"
+        :allow-empty="false"
+        :aria-label="t('transactions.fields.kind')"
+        @change="onKindChange"
+      />
+
       <div class="row">
-        <div class="field">
+        <div class="field date-field">
           <label for="transaction-date">{{ t('transactions.fields.date') }}</label>
           <DatePicker
             v-model="form.occurredAt"
             input-id="transaction-date"
+            fluid
             :date-format="locale === 'ru' ? 'dd.mm.yy' : 'mm/dd/yy'"
             show-icon
             icon-display="input"
@@ -279,7 +353,15 @@ async function save(): Promise<void> {
         </div>
 
         <div class="field grow">
-          <label for="transaction-account">{{ t('transactions.fields.account') }}</label>
+          <label for="transaction-account">
+            {{
+              t(
+                form.kind === 'transfer'
+                  ? 'transactions.fields.fromAccount'
+                  : 'transactions.fields.account'
+              )
+            }}
+          </label>
           <Select
             v-model="form.accountId"
             input-id="transaction-account"
@@ -291,9 +373,23 @@ async function save(): Promise<void> {
           />
           <small v-if="errors.accountId" class="field-error">{{ errors.accountId }}</small>
         </div>
+
+        <div v-if="form.kind === 'transfer'" class="field grow">
+          <label for="transaction-to-account">{{ t('transactions.fields.toAccount') }}</label>
+          <Select
+            v-model="form.toAccountId"
+            input-id="transaction-to-account"
+            :options="toAccountOptions"
+            option-label="name"
+            option-value="id"
+            :empty-message="t('transactions.hints.noAccounts')"
+            :invalid="!!errors.toAccountId"
+          />
+          <small v-if="errors.toAccountId" class="field-error">{{ errors.toAccountId }}</small>
+        </div>
       </div>
 
-      <div class="field">
+      <div v-if="form.kind !== 'transfer'" class="field">
         <label for="transaction-category">{{ t('transactions.fields.category') }}</label>
         <AutoComplete
           v-model="form.categoryName"
@@ -315,7 +411,15 @@ async function save(): Promise<void> {
           </template>
         </AutoComplete>
         <small v-if="errors.categoryName" class="field-error">{{ errors.categoryName }}</small>
-        <small v-else>{{ t('transactions.hints.category') }}</small>
+        <small v-else>
+          {{
+            t(
+              form.kind === 'income'
+                ? 'transactions.hints.incomeCategory'
+                : 'transactions.hints.category'
+            )
+          }}
+        </small>
       </div>
 
       <div v-if="!form.itemized" class="field">
@@ -325,13 +429,14 @@ async function save(): Promise<void> {
             v-model="form.amount"
             input-id="transaction-amount"
             mode="currency"
-            currency="RUB"
+            :currency="CURRENCY"
             currency-display="narrowSymbol"
             :locale="locale"
             :min="0"
             :invalid="!!errors.amount"
           />
           <Button
+            v-if="form.kind === 'expense'"
             :label="t('transactions.itemize')"
             icon="pi pi-list"
             severity="secondary"
@@ -416,7 +521,7 @@ async function save(): Promise<void> {
                   v-model="line.amount"
                   fluid
                   mode="currency"
-                  currency="RUB"
+                  :currency="CURRENCY"
                   currency-display="narrowSymbol"
                   :locale="locale"
                   :min="0"
@@ -482,9 +587,17 @@ async function save(): Promise<void> {
 </template>
 
 <style scoped>
+.kind {
+  margin-bottom: 1rem;
+}
+
 .row {
   display: flex;
   gap: 1rem;
+}
+
+.date-field {
+  flex: 0 0 11rem;
 }
 
 .grow {

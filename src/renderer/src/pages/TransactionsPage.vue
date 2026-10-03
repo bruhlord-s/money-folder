@@ -33,6 +33,23 @@ function openDialog(transaction: TransactionDto | null): void {
   dialogVisible.value = true
 }
 
+/** The category, or "Transfer" for transfers, which have none. */
+function categoryLabel(transaction: TransactionDto): string {
+  return transaction.category?.name ?? t('transactions.kinds.transfer')
+}
+
+/** "Card", or "Card → Savings" for a transfer. */
+function accountLabel(transaction: TransactionDto): string {
+  const { account, toAccount } = transaction
+  return toAccount ? `${account.name} → ${toAccount.name}` : account.name
+}
+
+/** Expenses are shown as negative and incomes as positive; transfers have no sign. */
+function signedTotal(transaction: TransactionDto): string {
+  const sign = { expense: '−', income: '+', transfer: '' }[transaction.kind]
+  return `${sign}${format.money(transaction.total)}`
+}
+
 /** Product names on the receipt, or the note when there are none. */
 function details(transaction: TransactionDto): string {
   const names = transaction.lines.flatMap((line) => (line.product ? [line.product.name] : []))
@@ -50,8 +67,8 @@ function confirmRemove(transaction: TransactionDto): void {
   confirm.require({
     header: t('transactions.deleteConfirm.header'),
     message: t('transactions.deleteConfirm.message', {
-      category: transaction.category.name,
-      date: format.date(transaction.occurredAt)
+      what: categoryLabel(transaction),
+      date: format.date(transaction.occurredOn)
     }),
     icon: 'pi pi-exclamation-triangle',
     acceptProps: { label: t('common.delete'), severity: 'danger' },
@@ -77,13 +94,21 @@ function confirmRemove(transaction: TransactionDto): void {
 
       <Column :header="t('transactions.columns.date')" class="date-column">
         <template #body="{ data }: { data: TransactionDto }">
-          {{ format.date(data.occurredAt) }}
+          {{ format.date(data.occurredOn) }}
         </template>
       </Column>
 
-      <Column field="category.name" :header="t('transactions.columns.category')" />
+      <Column :header="t('transactions.columns.category')">
+        <template #body="{ data }: { data: TransactionDto }">
+          {{ categoryLabel(data) }}
+        </template>
+      </Column>
 
-      <Column field="account.name" :header="t('transactions.columns.account')" />
+      <Column :header="t('transactions.columns.account')">
+        <template #body="{ data }: { data: TransactionDto }">
+          {{ accountLabel(data) }}
+        </template>
+      </Column>
 
       <Column :header="t('transactions.columns.details')">
         <template #body="{ data }: { data: TransactionDto }">
@@ -93,7 +118,7 @@ function confirmRemove(transaction: TransactionDto): void {
 
       <Column :header="t('transactions.columns.total')" class="total-column">
         <template #body="{ data }: { data: TransactionDto }">
-          {{ format.money(data.total) }}
+          <span :class="`amount-${data.kind}`">{{ signedTotal(data) }}</span>
         </template>
       </Column>
 
@@ -140,6 +165,14 @@ function confirmRemove(transaction: TransactionDto): void {
   text-align: right;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.amount-income {
+  color: var(--p-green-700);
+}
+
+.amount-transfer {
+  color: var(--p-surface-500);
 }
 
 :deep(.total-column .p-datatable-column-header-content) {

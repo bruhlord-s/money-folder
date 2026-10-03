@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fbf2fb09-e4b9-42af-9348-e0a789ac1793",
+  "id": "bbc9ad1c-4d98-4480-8f07-0d2ee4f36bcf",
   "prevId": "290f74cc-bf84-4a01-a995-23ee31c08b1f",
   "tables": {
     "account_tags": {
@@ -167,6 +167,13 @@
           "notNull": true,
           "autoincrement": true
         },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "name": {
           "name": "name",
           "type": "text",
@@ -183,9 +190,10 @@
         }
       },
       "indexes": {
-        "categories_name_key_unique": {
-          "name": "categories_name_key_unique",
+        "categories_kind_name_key_unique": {
+          "name": "categories_kind_name_key_unique",
           "columns": [
+            "kind",
             "name_key"
           ],
           "isUnique": true
@@ -194,7 +202,12 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "categories_kind": {
+          "name": "categories_kind",
+          "value": "\"categories\".\"kind\" IN ('expense', 'income')"
+        }
+      }
     },
     "family_members": {
       "name": "family_members",
@@ -476,6 +489,13 @@
           "notNull": true,
           "autoincrement": true
         },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "account_id": {
           "name": "account_id",
           "type": "integer",
@@ -483,16 +503,23 @@
           "notNull": true,
           "autoincrement": false
         },
+        "to_account_id": {
+          "name": "to_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "category_id": {
           "name": "category_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "integer",
+        "occurred_on": {
+          "name": "occurred_on",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -527,6 +554,13 @@
           ],
           "isUnique": false
         },
+        "transactions_to_account_id_idx": {
+          "name": "transactions_to_account_id_idx",
+          "columns": [
+            "to_account_id"
+          ],
+          "isUnique": false
+        },
         "transactions_category_id_idx": {
           "name": "transactions_category_id_idx",
           "columns": [
@@ -534,10 +568,10 @@
           ],
           "isUnique": false
         },
-        "transactions_occurred_at_idx": {
-          "name": "transactions_occurred_at_idx",
+        "transactions_occurred_on_idx": {
+          "name": "transactions_occurred_on_idx",
           "columns": [
-            "occurred_at"
+            "occurred_on"
           ],
           "isUnique": false
         }
@@ -549,6 +583,19 @@
           "tableTo": "accounts",
           "columnsFrom": [
             "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "transactions_to_account_id_accounts_id_fk": {
+          "name": "transactions_to_account_id_accounts_id_fk",
+          "tableFrom": "transactions",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "to_account_id"
           ],
           "columnsTo": [
             "id"
@@ -572,7 +619,28 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "transactions_kind": {
+          "name": "transactions_kind",
+          "value": "\"transactions\".\"kind\" IN ('expense', 'income', 'transfer')"
+        },
+        "transactions_transfer_target": {
+          "name": "transactions_transfer_target",
+          "value": "(\"transactions\".\"kind\" = 'transfer') = (\"transactions\".\"to_account_id\" IS NOT NULL)"
+        },
+        "transactions_transfer_other_account": {
+          "name": "transactions_transfer_other_account",
+          "value": "\"transactions\".\"to_account_id\" <> \"transactions\".\"account_id\""
+        },
+        "transactions_category": {
+          "name": "transactions_category",
+          "value": "(\"transactions\".\"kind\" = 'transfer') = (\"transactions\".\"category_id\" IS NULL)"
+        },
+        "transactions_occurred_on_date": {
+          "name": "transactions_occurred_on_date",
+          "value": "\"transactions\".\"occurred_on\" GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'"
+        }
+      }
     }
   },
   "views": {},
