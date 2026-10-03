@@ -1,5 +1,6 @@
-import { app, shell, BrowserWindow, dialog, Menu } from 'electron'
+import { app, shell, BrowserWindow, dialog, Menu, session } from 'electron'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import { release } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -8,6 +9,7 @@ import { getLogsFolder, initLogging } from './logging/electron-logger'
 import { errorMessages } from './logging/format-error'
 import { registerIpcHandlers } from './ipc'
 import { buildAppMenu } from './menu'
+import { denyPermissions, hardenWindow } from './security'
 
 // `--verbose` enables debug logs in production builds.
 const logLevel = is.dev || app.commandLine.hasSwitch('verbose') ? 'debug' : 'info'
@@ -22,6 +24,13 @@ logger.info('app starting', {
 })
 
 let container: Container | undefined
+
+// The renderer's own page: the dev server with HMR in development, the bundled file in production.
+// Navigation and IPC are trusted only from here.
+const appUrl =
+  is.dev && process.env['ELECTRON_RENDERER_URL']
+    ? process.env['ELECTRON_RENDERER_URL']
+    : pathToFileURL(join(__dirname, '../renderer/index.html')).href
 
 function initContainer(): Container {
   const userData = app.getPath('userData')
@@ -50,7 +59,8 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      // The preload is bundled and needs nothing but contextBridge and ipcRenderer.
+      sandbox: true
     }
   })
 
@@ -60,18 +70,13 @@ function createWindow(): void {
     mainWindow.show()
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    void shell.openExternal(details.url)
-    return { action: 'deny' }
+  hardenWindow(mainWindow, {
+    appUrl,
+    openExternal: (url) => void shell.openExternal(url),
+    logger: logger.child('security')
   })
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    void mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-  } else {
-    void mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
+  void mainWindow.loadURL(appUrl)
 }
 
 // This method will be called when Electron has finished
@@ -88,6 +93,8 @@ void app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  denyPermissions(session.defaultSession, logger.child('security'))
+
   Menu.setApplicationMenu(
     buildAppMenu({
       openLogsFolder: () => {
@@ -98,7 +105,7 @@ void app.whenReady().then(() => {
 
   try {
     container = initContainer()
-    registerIpcHandlers(container)
+    registerIpcHandlers(container, appUrl)
   } catch (error) {
     logger.error('failed to open database', { error })
     dialog.showErrorBox('Failed to open the database', errorMessages(error))
