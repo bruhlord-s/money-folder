@@ -8,6 +8,10 @@
   ],
   "compilerOptions": {
     "composite": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
       "@renderer/*": [
