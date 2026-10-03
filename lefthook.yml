@@ -1,22 +1,22 @@
 pre-commit:
-  parallel: true
-  commands:
-    prettier:
-      glob: '*.{ts,mts,js,mjs,cjs,vue,json,yml,yaml,css,html,md}'
-      run: pnpm prettier --write --ignore-unknown {staged_files}
-      stage_fixed: true
-    eslint:
+  # Sequential on purpose: both tools rewrite the same files, Prettier goes last.
+  jobs:
+    - name: eslint
       glob: '*.{ts,mts,js,mjs,cjs,vue}'
       run: pnpm eslint --fix {staged_files}
       stage_fixed: true
+    - name: prettier
+      glob: '*.{ts,mts,js,mjs,cjs,vue,json,yml,yaml,css,html,md}'
+      run: pnpm prettier --write --ignore-unknown {staged_files}
+      stage_fixed: true
 
 pre-push:
-  commands:
-    typecheck:
+  jobs:
+    - name: typecheck
       run: pnpm typecheck
     # add `pnpm test` here once tests exist
 
 commit-msg:
-  commands:
-    commitlint:
+  jobs:
+    - name: commitlint
       run: pnpm commitlint --edit {1}
