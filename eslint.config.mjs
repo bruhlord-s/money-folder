@@ -126,8 +126,9 @@ export default defineConfig(
           patterns: [
             drizzleValueImports,
             {
-              group: ['electron', '**/ipc/**'],
-              message: 'Services are framework-free — no Electron or IPC imports.'
+              group: ['electron', 'electron-log', 'electron-log/*', '**/ipc/**'],
+              message:
+                'Services are framework-free — no Electron or IPC imports. Use the injected Logger.'
             }
           ]
         }
