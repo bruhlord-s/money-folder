@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+
+  # Lives in this workflow because releases created with GITHUB_TOKEN don't trigger other workflows.
+  build:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+            artifacts: dist/*.exe
+          - os: macos-latest
+            platform: mac
+            artifacts: dist/*.dmg
+          - os: ubuntu-latest
+            platform: linux
+            artifacts: dist/*.AppImage dist/*.deb
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:${{ matrix.platform }} --publish never
+        env:
+          # No signing certificates yet: build unsigned installers.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - run: gh release upload ${{ needs.release-please.outputs.tag_name }} ${{ matrix.artifacts }} --clobber
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

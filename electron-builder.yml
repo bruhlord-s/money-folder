@@ -9,7 +9,7 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
-  - '!{lefthook.yml,commitlint.config.mjs,knip.json}'
+  - '!{lefthook.yml,commitlint.config.mjs,knip.json,release-please-config.json,.release-please-manifest.json}'
   - '!.github/*'
 extraResources:
   - from: src/main/db/migrations
@@ -36,7 +36,6 @@ dmg:
 linux:
   target:
     - AppImage
-    - snap
     - deb
   maintainer: electronjs.org
   category: Utility
