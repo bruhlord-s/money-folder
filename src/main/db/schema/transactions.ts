@@ -3,15 +3,16 @@ import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-cor
 import { accounts } from './accounts'
 import { categories } from './categories'
 import { products } from './products'
-// Keep in sync with TRANSACTION_KINDS in @shared/transactions (drizzle-kit can't resolve the alias).
-const KINDS = ['expense', 'income', 'transfer'] as const
+// Relative, not @shared: drizzle-kit loads this file and can't resolve the alias.
+import { TRANSACTION_KINDS } from '../../../shared/transactions'
+import { oneOf } from './one-of'
 
 export const transactions = sqliteTable(
   'transactions',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
     /** Amounts are always positive; the kind gives the direction. */
-    kind: text('kind', { enum: KINDS }).notNull(),
+    kind: text('kind', { enum: TRANSACTION_KINDS }).notNull(),
     /** The account the money leaves (expense, transfer) or arrives at (income). */
     accountId: integer('account_id')
       .notNull()
@@ -27,7 +28,7 @@ export const transactions = sqliteTable(
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull()
   },
   (t) => [
-    check('transactions_kind', sql`${t.kind} IN ('expense', 'income', 'transfer')`),
+    check('transactions_kind', oneOf(t.kind, TRANSACTION_KINDS)),
     check(
       'transactions_transfer_target',
       sql`(${t.kind} = 'transfer') = (${t.toAccountId} IS NOT NULL)`

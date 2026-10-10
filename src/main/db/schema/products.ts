@@ -1,7 +1,8 @@
 import { sql } from 'drizzle-orm'
 import { check, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
-// Keep in sync with PRODUCT_UNITS in @shared/transactions (drizzle-kit can't resolve the alias).
-const UNITS = ['pcs', 'kg', 'l'] as const
+// Relative, not @shared: drizzle-kit loads this file and can't resolve the alias.
+import { PRODUCT_UNITS } from '../../../shared/transactions'
+import { oneOf } from './one-of'
 
 export const products = sqliteTable(
   'products',
@@ -17,11 +18,11 @@ export const products = sqliteTable(
     size: integer('size'),
     /** `size` or 0; NULLs never collide in a unique index, so the index uses this instead. */
     sizeKey: integer('size_key').notNull().default(0),
-    unit: text('unit', { enum: UNITS }).notNull()
+    unit: text('unit', { enum: PRODUCT_UNITS }).notNull()
   },
   (t) => [
     check('products_size_positive', sql`${t.size} > 0`),
-    check('products_unit', sql`${t.unit} IN ('pcs', 'kg', 'l')`),
+    check('products_unit', oneOf(t.unit, PRODUCT_UNITS)),
     uniqueIndex('products_identity_unique').on(t.nameKey, t.brandKey, t.sizeKey, t.unit)
   ]
 )
