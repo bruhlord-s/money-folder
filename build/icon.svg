@@ -1,0 +1,19 @@
+<!--
+  Source of the app icon: a wallet with a banknote on an orange tile (theme orange-500 to orange-700).
+  The tile sits on Apple's 1024 grid (824 px tile, 100 px margin), as used for icon.icns.
+  icon.ico, icon.png and resources/icon.png use the same drawing scaled 1.165x around the center,
+  so the tile nearly fills the canvas like other Windows and Linux icons.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f97316"/><stop offset="1" stop-color="#c2410c"/></linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="184" fill="url(#bg)"/>
+  <!-- banknote peeking out -->
+  <rect x="300" y="270" width="380" height="200" rx="24" fill="#fde68a" transform="rotate(-8 490 370)"/>
+  <!-- wallet body -->
+  <rect x="236" y="360" width="552" height="380" rx="56" fill="#fffcf2"/>
+  <!-- clasp -->
+  <path d="M600 470 h188 v160 h-188 a80 80 0 0 1 0-160 Z" fill="#fef6dc" stroke="#ea580c" stroke-width="20"/>
+  <circle cx="610" cy="550" r="30" fill="#ea580c"/>
+</svg>
