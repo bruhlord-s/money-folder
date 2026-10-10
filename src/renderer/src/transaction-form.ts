@@ -51,7 +51,7 @@ export interface FormErrors {
 
 let nextKey = 0
 
-function toKopecks(rubles: number | null): number {
+export function toKopecks(rubles: number | null): number {
   return rubles === null ? 0 : Math.round(rubles * KOPECKS)
 }
 
