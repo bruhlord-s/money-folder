@@ -1,10 +1,10 @@
 {
   "name": "money-folder",
   "version": "0.0.0",
-  "description": "An Electron application with Vue and TypeScript",
+  "description": "A family budget: accounts, expenses with receipt lines, income and transfers",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "Treize Konstantin <treizeknstntn@gmail.com>",
+  "homepage": "https://github.com/bruhlord-s/money-folder",
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",

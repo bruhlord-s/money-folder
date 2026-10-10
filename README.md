@@ -1,6 +1,10 @@
 # money-folder
 
-An Electron application with Vue and TypeScript
+A desktop app for a family budget: accounts with owners and tags, expenses with receipt lines and
+products, income, and transfers between accounts. Data stays on the computer in a local SQLite
+database.
+
+Built with Electron, Vue 3, PrimeVue, TypeScript, Drizzle ORM and better-sqlite3.
 
 ## Recommended IDE Setup
 
