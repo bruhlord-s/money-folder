@@ -16,8 +16,6 @@ import {
   CATEGORY_KINDS,
   CATEGORY_NAME_MAX,
   CURRENCY,
-  KOPECKS,
-  MILLI,
   NOTE_MAX,
   PRODUCT_NAME_MAX,
   PRODUCT_UNITS,
@@ -25,13 +23,23 @@ import {
   transactionInputSchema,
   type CategoryKind,
   type ProductDto,
-  type ProductUnit,
-  type TransactionDto,
-  type TransactionKind
+  type TransactionDto
 } from '@shared/transactions'
 import { useApi } from '../composables/use-api'
 import { useFormat } from '../composables/use-format'
-import { fromLocalDate, toLocalDate } from '../local-date'
+import {
+  applyProduct,
+  emptyLine,
+  formErrors,
+  formFromTransaction,
+  itemize,
+  linesTotal,
+  removeLine,
+  switchToSingleAmount,
+  toInput,
+  type FormField,
+  type TransactionForm
+} from '../transaction-form'
 
 const props = defineProps<{ transaction: TransactionDto | null }>()
 const visible = defineModel<boolean>('visible', { required: true })
@@ -41,45 +49,8 @@ const { t, locale } = useI18n()
 const { call, notifySuccess } = useApi()
 const format = useFormat()
 
-/** Amounts are edited in rubles, quantities and sizes in whole units; converted on save. */
-interface LineForm {
-  key: number
-  name: string
-  brand: string
-  size: number | null
-  unit: ProductUnit
-  quantity: number | null
-  amount: number | null
-}
-
-type Field = 'accountId' | 'toAccountId' | 'categoryName' | 'amount' | 'note' | 'lines'
-
-interface TransactionForm {
-  kind: TransactionKind
-  occurredAt: Date
-  accountId: number | null
-  /** Transfers only. */
-  toAccountId: number | null
-  categoryName: string
-  note: string
-  /** false: one amount (taxi). true: a table of receipt lines, for expenses only. */
-  itemized: boolean
-  amount: number | null
-  lines: LineForm[]
-}
-
-const form = reactive<TransactionForm>({
-  kind: 'expense',
-  occurredAt: new Date(),
-  accountId: null,
-  toAccountId: null,
-  categoryName: '',
-  note: '',
-  itemized: false,
-  amount: null,
-  lines: []
-})
-const errors = ref<Partial<Record<Field, string>>>({})
+const form = reactive<TransactionForm>(formFromTransaction(null, new Date()))
+const errors = ref<Partial<Record<FormField, string>>>({})
 /** Keys of lines that failed validation. */
 const invalidLines = ref(new Set<number>())
 const accounts = ref<AccountDto[]>([])
@@ -88,8 +59,6 @@ const products = ref<ProductDto[]>([])
 const categorySuggestions = ref<string[]>([])
 const productSuggestions = ref<ProductDto[]>([])
 const saving = ref(false)
-
-let nextKey = 0
 
 const kindOptions = computed(() =>
   TRANSACTION_KINDS.map((kind) => ({ value: kind, label: t(`transactions.kinds.${kind}`) }))
@@ -122,56 +91,13 @@ const toAccountOptions = computed(() =>
   accountOptions.value.filter((account) => account.id !== form.accountId)
 )
 
-const linesTotal = computed(() => form.lines.reduce((sum, line) => sum + toKopecks(line.amount), 0))
-
-function toKopecks(rubles: number | null): number {
-  return rubles === null ? 0 : Math.round(rubles * KOPECKS)
-}
-
-function toMilli(units: number | null): number {
-  return units === null ? 0 : Math.round(units * MILLI)
-}
-
-function emptyLine(): LineForm {
-  return {
-    key: nextKey++,
-    name: '',
-    brand: '',
-    size: null,
-    unit: 'pcs',
-    quantity: 1,
-    amount: null
-  }
-}
+const total = computed(() => linesTotal(form.lines))
 
 watch(visible, async (isOpen) => {
   if (!isOpen) return
-  const transaction = props.transaction
   errors.value = {}
   invalidLines.value = new Set()
-  form.kind = transaction?.kind ?? 'expense'
-  form.occurredAt = transaction ? fromLocalDate(transaction.occurredOn) : startOfToday()
-  form.accountId = transaction?.account.id ?? null
-  form.toAccountId = transaction?.toAccount?.id ?? null
-  form.categoryName = transaction?.category?.name ?? ''
-  form.note = transaction?.note ?? ''
-
-  const lines = transaction?.lines ?? []
-  // The single-amount form can only show one line without a product and with quantity 1.
-  form.itemized =
-    lines.length > 1 || lines.some((line) => line.product !== null || line.quantity !== MILLI)
-  form.amount = form.itemized || !lines[0] ? null : lines[0].amount / KOPECKS
-  form.lines = form.itemized
-    ? lines.map((line) => ({
-        key: nextKey++,
-        name: line.product?.name ?? '',
-        brand: line.product?.brand ?? '',
-        size: line.product?.size == null ? null : line.product.size / MILLI,
-        unit: line.product?.unit ?? 'pcs',
-        quantity: line.quantity / MILLI,
-        amount: line.amount / KOPECKS
-      }))
-    : []
+  Object.assign(form, formFromTransaction(props.transaction, new Date()))
 
   const [accountList, productList, ...categoryLists] = await Promise.all([
     call('accounts:list', { includeArchived: true }),
@@ -190,12 +116,7 @@ watch(visible, async (isOpen) => {
 function onKindChange(): void {
   errors.value = {}
   invalidLines.value = new Set()
-  if (form.kind !== 'expense' && form.itemized) useSingleAmount()
-}
-
-function startOfToday(): Date {
-  const now = new Date()
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (form.kind !== 'expense' && form.itemized) switchToSingleAmount(form)
 }
 
 /** Existing categories that match, then the typed text itself so a new category can be created. */
@@ -217,83 +138,14 @@ function suggestProducts(event: AutoCompleteCompleteEvent): void {
   )
 }
 
-/** Typing sets the name; picking a saved product fills brand, size and unit too. */
-function onProductInput(line: LineForm, value: string | ProductDto | null): void {
-  if (value === null || typeof value === 'string') {
-    line.name = value ?? ''
-    return
-  }
-  line.name = value.name
-  line.brand = value.brand ?? ''
-  line.size = value.size === null ? null : value.size / MILLI
-  line.unit = value.unit
-}
-
-function itemize(): void {
-  form.itemized = true
-  form.lines = [{ ...emptyLine(), amount: form.amount }]
-}
-
-function useSingleAmount(): void {
-  form.itemized = false
-  form.amount = form.lines[0]?.amount ?? null
-  form.lines = []
-}
-
-function removeLine(key: number): void {
-  form.lines = form.lines.filter((line) => line.key !== key)
-  if (form.lines.length === 0) useSingleAmount()
-}
-
-function buildInput(): unknown {
-  const common = {
-    kind: form.kind,
-    accountId: form.accountId,
-    occurredOn: toLocalDate(form.occurredAt),
-    note: form.note
-  }
-  if (form.kind === 'transfer') {
-    return { ...common, toAccountId: form.toAccountId, amount: toKopecks(form.amount) }
-  }
-  return { ...common, categoryName: form.categoryName, lines: buildLines() }
-}
-
-function buildLines(): unknown[] {
-  if (!form.itemized) {
-    return [{ product: null, quantity: MILLI, amount: toKopecks(form.amount) }]
-  }
-  return form.lines.map((line) => ({
-    // A line without a name has no product, like a bag fee.
-    product: line.name.trim()
-      ? {
-          name: line.name,
-          brand: line.brand,
-          size: line.size === null ? null : toMilli(line.size),
-          unit: line.unit
-        }
-      : null,
-    quantity: toMilli(line.quantity),
-    amount: toKopecks(line.amount)
-  }))
-}
-
 async function save(): Promise<void> {
-  const parsed = transactionInputSchema.safeParse(buildInput())
+  const parsed = transactionInputSchema.safeParse(toInput(form))
   if (!parsed.success) {
-    errors.value = {}
-    invalidLines.value = new Set()
-    for (const issue of parsed.error.issues) {
-      const [field, index] = issue.path
-      if (field !== 'lines') {
-        errors.value[field as Field] = t(`transactions.errors.${field as Field}`)
-      } else if (!form.itemized) {
-        errors.value.amount = t('transactions.errors.amount')
-      } else {
-        errors.value.lines = t('transactions.errors.lines')
-        const line = typeof index === 'number' ? form.lines[index] : undefined
-        if (line) invalidLines.value.add(line.key)
-      }
-    }
+    const { fields, lineKeys } = formErrors(parsed.error.issues, form)
+    errors.value = Object.fromEntries(
+      [...fields].map((field) => [field, t(`transactions.errors.${field}`)])
+    )
+    invalidLines.value = lineKeys
     return
   }
 
@@ -436,7 +288,7 @@ async function save(): Promise<void> {
             icon="pi pi-list"
             severity="secondary"
             text
-            @click="itemize"
+            @click="itemize(form)"
           />
         </div>
         <small v-if="errors.amount" class="field-error">{{ errors.amount }}</small>
@@ -469,7 +321,7 @@ async function save(): Promise<void> {
                   :suggestions="productSuggestions"
                   :option-label="format.product"
                   :aria-label="t('transactions.fields.product')"
-                  @update:model-value="onProductInput(line, $event)"
+                  @update:model-value="applyProduct(line, $event)"
                   @complete="suggestProducts"
                 />
               </td>
@@ -531,7 +383,7 @@ async function save(): Promise<void> {
                   severity="secondary"
                   :aria-label="t('transactions.removeLine')"
                   :title="t('transactions.removeLine')"
-                  @click="removeLine(line.key)"
+                  @click="removeLine(form, line.key)"
                 />
               </td>
             </tr>
@@ -553,12 +405,10 @@ async function save(): Promise<void> {
               :label="t('transactions.singleAmount')"
               severity="secondary"
               text
-              @click="useSingleAmount"
+              @click="switchToSingleAmount(form)"
             />
           </div>
-          <strong class="total">
-            {{ t('transactions.total') }}: {{ format.money(linesTotal) }}
-          </strong>
+          <strong class="total"> {{ t('transactions.total') }}: {{ format.money(total) }} </strong>
         </div>
       </div>
 
