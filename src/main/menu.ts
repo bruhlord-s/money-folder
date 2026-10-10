@@ -1,6 +1,13 @@
 import { Menu, type MenuItemConstructorOptions } from 'electron'
+import type { MainMessages } from './i18n'
 
-export function buildAppMenu({ openLogsFolder }: { openLogsFolder: () => void }): Menu {
+export function buildAppMenu({
+  messages,
+  openLogsFolder
+}: {
+  messages: MainMessages
+  openLogsFolder: () => void
+}): Menu {
   const template: MenuItemConstructorOptions[] = [
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' } as const] : []),
     { role: 'fileMenu' },
@@ -9,7 +16,7 @@ export function buildAppMenu({ openLogsFolder }: { openLogsFolder: () => void })
     { role: 'windowMenu' },
     {
       role: 'help',
-      submenu: [{ label: 'Open logs folder', click: openLogsFolder }]
+      submenu: [{ label: messages.openLogsFolder, click: openLogsFolder }]
     }
   ]
   return Menu.buildFromTemplate(template)
