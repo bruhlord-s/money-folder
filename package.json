@@ -53,7 +53,7 @@
     "eslint": "^10.11.0",
     "eslint-plugin-vue": "^10.6.2",
     "knip": "^6.39.0",
-    "lefthook": "^2.1.16",
+    "lefthook": "^2.1.17",
     "prettier": "^3.7.4",
     "primeicons": "^7.0.0",
     "primevue": "~4.5.5",
