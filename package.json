@@ -1,6 +1,6 @@
 {
   "name": "money-folder",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A family budget: accounts, expenses with receipt lines, income and transfers",
   "main": "./out/main/index.js",
   "author": "Treize Konstantin <treizeknstntn@gmail.com>",
