@@ -8,6 +8,7 @@ import { createContainer, type Container } from './container'
 import { getLogsFolder, initLogging } from './logging/electron-logger'
 import { errorMessages } from './logging/format-error'
 import { registerIpcHandlers } from './ipc'
+import { mainMessages } from './i18n'
 import { buildAppMenu } from './menu'
 import { denyPermissions, hardenWindow } from './security'
 
@@ -95,8 +96,11 @@ void app.whenReady().then(() => {
 
   denyPermissions(session.defaultSession, logger.child('security'))
 
+  // app.getLocale() follows the system language, or --lang, like the renderer's navigator.language.
+  const messages = mainMessages(app.getLocale())
   Menu.setApplicationMenu(
     buildAppMenu({
+      messages,
       openLogsFolder: () => {
         void shell.openPath(getLogsFolder())
       }
@@ -108,7 +112,7 @@ void app.whenReady().then(() => {
     registerIpcHandlers(container, appUrl)
   } catch (error) {
     logger.error('failed to open database', { error })
-    dialog.showErrorBox('Failed to open the database', errorMessages(error))
+    dialog.showErrorBox(messages.databaseError, errorMessages(error))
     app.quit()
     return
   }
